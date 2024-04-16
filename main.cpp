@@ -10,8 +10,10 @@ Color blue = { 102, 191, 255, 255};
 Color red = {255, 0, 0, 255};
 Color green = {0, 228, 48, 255};
 Color pink = {255, 109, 194, 255};
+
 int cellSize = 25;
 int cellCount = 25;
+int offset = 30;
 
 double lastUpdateTime = 0;
 
@@ -50,7 +52,7 @@ class Snake
             {
                 float x = body[i].x;
                 float y = body[i].y;
-                Rectangle segment = Rectangle{x*cellSize, y*cellSize, (float)cellSize, (float)cellSize};
+                Rectangle segment = Rectangle{offset + x*cellSize, offset + y*cellSize, (float)cellSize, (float)cellSize};
                 DrawRectangleRounded(segment, 0.5, 6, green);
             }
         }
@@ -65,6 +67,12 @@ class Snake
             {
                 body.pop_back();   
             }
+        }
+
+        void Reset()
+        {
+            body = {Vector2{6,9}, Vector2{5,9}, Vector2{4,9}};
+            direction = {1,0};
         }
 
 };
@@ -91,7 +99,7 @@ class Food
 
         void Draw()
         {
-            DrawTexture(texture, position.x * cellSize, position.y * cellSize, WHITE);
+            DrawTexture(texture, offset + position.x * cellSize, offset + position.y * cellSize, WHITE);
         }
 
         Vector2 GenerateRandomCell()
@@ -117,6 +125,8 @@ class Game
     public:
         Snake snake = Snake();
         Food food = Food(snake.body);
+        bool running = true;
+        int score = 0;
 
         void Draw()
         {
@@ -126,25 +136,61 @@ class Game
 
         void Update()
         {
-            snake.Update();
-            CheckCollisionWithFood();
+            if(running)
+            {
+                snake.Update();
+                CheckEatFood();
+                CheckCollisionWithEdges();
+                CheckCollisionWithTail();
+            }
         }
 
-        void CheckCollisionWithFood() 
+        void CheckEatFood() 
         {
             if (Vector2Equals(snake.body[0], food.position))
             {
                 food.position = food.GenerateRandomPos(snake.body);
                 snake.addSegment = true;
+                score++;
             }
+        }
+
+        void CheckCollisionWithEdges() 
+        {
+            if (snake.body[0].x == cellCount || snake.body[0].x == -1) 
+            {
+                GameOver();
+            }
+            if(snake.body[0].y == cellCount || snake.body[0].y == -1)
+            {
+                GameOver();
+            }
+        }
+
+        void CheckCollisionWithTail()
+        {
+            deque<Vector2> headlessBody = snake.body;
+            headlessBody.pop_front();
+            if(ElementInDeque(snake.body[0], headlessBody))
+            {
+                GameOver();
+            }
+        }
+
+        void GameOver()
+        {
+            snake.Reset();
+            food.position = food.GenerateRandomPos(snake.body);
+            running = false;
+            score = 0;
         }
 };
 
 int main() 
 {
     cout<< "START GAME" <<endl;
-    InitWindow(cellSize*cellCount, cellSize*cellCount, "Ouroboros");
-    SetTargetFPS(60);
+    InitWindow(2*offset + cellSize*cellCount, 2*offset + cellSize*cellCount, "Ouroboros");
+    SetTargetFPS(100);
 
     Game game = Game();
 
@@ -152,30 +198,37 @@ int main()
     { 
         BeginDrawing();
 
-        if(eventTriggered(0.2))
+        if(eventTriggered(0.15))
         {
             game.Update();
         }
         if(IsKeyPressed(KEY_UP) && game.snake.direction.y !=1)
         {
             game.snake.direction = {0,-1};
+            game.running = true;
         }
         if(IsKeyPressed(KEY_DOWN) && game.snake.direction.y != -1)
         {
             game.snake.direction = {0,1};
+            game.running = true;
         }
         if(IsKeyPressed(KEY_LEFT) && game.snake.direction.x != 1)
         {
             game.snake.direction = {-1,0};
+            game.running = true;
         }
         if(IsKeyPressed(KEY_RIGHT) && game.snake.direction.x !=-1)
         {
             game.snake.direction = {1,0};
+            game.running = true;
         }
 
         ClearBackground(black);
+        DrawRectangleLinesEx(Rectangle{(float) offset-5, (float) offset-5, (float) cellSize*cellCount + 10, (float) cellSize*cellCount + 10}, 5, red);
+        DrawText("Ouroboros", offset-5, 5, 20, red);
+        DrawText("Score: ", offset - 5, offset + cellSize*cellCount + 5, 20, red);
+        DrawText(TextFormat("%i",game.score), offset + 70, offset + cellSize*cellCount + 5, 20, red);
         game.Draw();
-
         EndDrawing();
     }
     CloseWindow();
